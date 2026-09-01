@@ -8,7 +8,7 @@ import { PermissionPrimer } from "@/components/peace/PermissionPrimer";
 import { useState } from "react";
 
 export default function PeaceBlur() {
-  const { videoRef, cameraActive, isStarting, handDetected, peaceDetected, error, startCamera, stopCamera } =
+  const { videoRef, canvasRef, cameraActive, isStarting, handDetected, peaceDetected, error, startCamera, stopCamera } =
     useHandDetection();
   const [showPrimer, setShowPrimer] = useState(false);
 
@@ -38,6 +38,7 @@ export default function PeaceBlur() {
           <div className="min-w-0">
             <CameraView
               videoRef={videoRef}
+              canvasRef={canvasRef}
               cameraActive={cameraActive}
               isStarting={isStarting}
               peaceDetected={peaceDetected}

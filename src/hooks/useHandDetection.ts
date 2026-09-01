@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import { isPeaceSign } from "@/utils/gestureDetection";
 import type { CameraError } from "@/types/detection";
+import { resizeCanvasToVideo, drawHand, clearCanvas } from "@/utils/handDrawing";
 
 interface UseHandDetectionReturn {
   videoRef: React.RefObject<HTMLVideoElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
   cameraActive: boolean;
   isStarting: boolean;
   handDetected: boolean;
@@ -16,10 +18,12 @@ interface UseHandDetectionReturn {
 
 export function useHandDetection(): UseHandDetectionReturn {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
   const animationRef = useRef<number>(0);
   const initializedRef = useRef(false);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const [cameraActive, setCameraActive] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
@@ -83,6 +87,59 @@ export function useHandDetection(): UseHandDetectionReturn {
     throw new Error(friendly);
   }, []);
 
+  const clearOverlay = useCallback(() => {
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (canvas && ctx) {
+      clearCanvas(canvas, ctx);
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    }
+  }, []);
+
+  const stopCameraInternal = useCallback(() => {
+    cancelAnimationFrame(animationRef.current);
+    clearOverlay();
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    const video = videoRef.current;
+    if (video) {
+      video.srcObject = null;
+    }
+    setCameraActive(false);
+    setHandDetected(false);
+    setPeaceDetected(false);
+  }, [clearOverlay]);
+
+  const drawOverlay = useCallback((landmarks: import("@mediapipe/tasks-vision").NormalizedLandmark[] | null) => {
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!canvas || !video) return;
+    if (!ctxRef.current) {
+      ctxRef.current = canvas.getContext("2d");
+    }
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+
+    // Sync canvas size to displayed video size
+    resizeCanvasToVideo(canvas, video);
+
+    if (!landmarks || landmarks.length === 0) {
+      clearCanvas(canvas, ctx);
+      // need to re-apply DPR transform after clear
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      return;
+    }
+
+    // mirrored because video uses scale-x-[-1]
+    drawHand(ctx, canvas, landmarks, video, true);
+  }, []);
+
   const detectLoop = useCallback(() => {
     const video = videoRef.current;
     const landmarker = handLandmarkerRef.current;
@@ -96,15 +153,17 @@ export function useHandDetection(): UseHandDetectionReturn {
       if (landmarks && landmarks.length > 0) {
         setHandDetected(true);
         setPeaceDetected(isPeaceSign(landmarks));
+        drawOverlay(landmarks);
       } else {
         setHandDetected(false);
         setPeaceDetected(false);
+        drawOverlay(null);
       }
     } catch {
       // keep loop alive even on single frame error
     }
     animationRef.current = requestAnimationFrame(detectLoop);
-  }, []);
+  }, [drawOverlay]);
 
   const startCamera = useCallback(async () => {
     setError(null);
@@ -207,26 +266,38 @@ export function useHandDetection(): UseHandDetectionReturn {
     } finally {
       setIsStarting(false);
     }
-  }, [detectLoop, initHandLandmarker]);
-
-  const stopCameraInternal = useCallback(() => {
-    cancelAnimationFrame(animationRef.current);
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    const video = videoRef.current;
-    if (video) {
-      video.srcObject = null;
-    }
-    setCameraActive(false);
-    setHandDetected(false);
-    setPeaceDetected(false);
-  }, []);
+  }, [detectLoop, initHandLandmarker, stopCameraInternal]);
 
   const stopCamera = useCallback(() => {
     stopCameraInternal();
   }, [stopCameraInternal]);
+
+  // Handle resize / orientation change - keep canvas aligned
+  useEffect(() => {
+    if (!cameraActive) return;
+    const onResize = () => {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      if (canvas && video) resizeCanvasToVideo(canvas, video);
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && videoRef.current) {
+      ro = new ResizeObserver(onResize);
+      ro.observe(videoRef.current);
+      if (canvasRef.current) ro.observe(canvasRef.current);
+    }
+    const onMetadata = () => onResize();
+    const v = videoRef.current;
+    v?.addEventListener("loadedmetadata", onMetadata);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      v?.removeEventListener("loadedmetadata", onMetadata);
+      if (ro) ro.disconnect();
+    };
+  }, [cameraActive]);
 
   useEffect(() => {
     return () => {
@@ -248,6 +319,7 @@ export function useHandDetection(): UseHandDetectionReturn {
 
   return {
     videoRef: videoRef as React.RefObject<HTMLVideoElement>,
+    canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
     cameraActive,
     isStarting,
     handDetected,

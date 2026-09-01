@@ -2,6 +2,7 @@ import { AlertTriangle, Video, Loader2, RefreshCw } from "lucide-react";
 
 interface Props {
   videoRef: React.RefObject<HTMLVideoElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
   cameraActive: boolean;
   isStarting: boolean;
   peaceDetected: boolean;
@@ -9,7 +10,7 @@ interface Props {
   onRetry?: () => void;
 }
 
-export function CameraView({ videoRef, cameraActive, isStarting, peaceDetected, error, onRetry }: Props) {
+export function CameraView({ videoRef, canvasRef, cameraActive, isStarting, peaceDetected, error, onRetry }: Props) {
   return (
     <div className="relative overflow-hidden rounded-[20px] border border-white/[0.07] bg-[#0A0C14] shadow-[0_20px_60px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.04)_inset] md:rounded-[22px]">
       <div className="relative aspect-[4/3] w-full bg-black md:aspect-video md:bg-[#0A0C14]">
@@ -18,7 +19,14 @@ export function CameraView({ videoRef, cameraActive, isStarting, peaceDetected, 
           autoPlay
           muted
           playsInline
-          className={`h-full w-full bg-black object-contain object-center scale-x-[-1] transition-[filter] duration-500 md:object-cover ${peaceDetected ? "blur-[18px]" : "blur-0"}`}
+          className={`h-full w-full bg-black object-cover object-center scale-x-[-1] transition-[filter] duration-500 ${peaceDetected ? "blur-[18px]" : "blur-0"}`}
+        />
+
+        {/* Canvas overlay - always rendered but only drawn when camera active. Keeps clear when video blurs */}
+        <canvas
+          ref={canvasRef}
+          className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
+          aria-hidden="true"
         />
 
         {/* Empty state */}
@@ -60,7 +68,7 @@ export function CameraView({ videoRef, cameraActive, isStarting, peaceDetected, 
         )}
 
         {isStarting && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0A0C14]/85 backdrop-blur-[2px]">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#0A0C14]/85 backdrop-blur-[2px]">
             <Loader2 className="h-6 w-6 animate-spin text-white/70" />
             <p className="text-xs font-medium tracking-wide text-white/50">Starting camera…</p>
           </div>
@@ -69,8 +77,8 @@ export function CameraView({ videoRef, cameraActive, isStarting, peaceDetected, 
         {/* HUD - only when camera active */}
         {cameraActive && (
           <>
-            {/* top bar */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-3 md:p-4">
+            {/* top bar - above canvas */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-[2] flex items-center justify-between p-3 md:p-4">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-2.5 py-1 backdrop-blur-md md:px-3 md:py-1.5">
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${peaceDetected ? "bg-sky-400" : "bg-emerald-400"} ${cameraActive ? "animate-pulse" : ""}`}
@@ -84,7 +92,7 @@ export function CameraView({ videoRef, cameraActive, isStarting, peaceDetected, 
               </div>
             </div>
 
-            {/* blur tint when peace */}
+            {/* blur tint when peace - below canvas (canvas is z-[1]) so skeleton stays clear */}
             {peaceDetected && <div className="pointer-events-none absolute inset-0 bg-sky-500/[0.035] transition-opacity duration-500" />}
           </>
         )}
