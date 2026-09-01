@@ -129,12 +129,18 @@ export function useHandDetection(): UseHandDetectionReturn {
     try {
       await initHandLandmarker();
 
+      const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
+        video: isMobile
+          ? {
+              facingMode: "user",
+            }
+          : {
+              facingMode: "user",
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              aspectRatio: { ideal: 16 / 9 },
+            },
         audio: false,
       });
       streamRef.current = stream;

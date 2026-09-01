@@ -43,7 +43,6 @@ export default function PeaceBlur() {
               peaceDetected={peaceDetected}
               error={error}
               onRetry={handleConfirm}
-              onRequestPermission={handleStart}
             />
             {/* privacy line under camera - desktop only secondary */}
             <div className="mt-3 flex items-center justify-center gap-2 text-[11px] text-white/30 md:justify-start">
@@ -55,8 +54,16 @@ export default function PeaceBlur() {
 
           {/* Side panel - detection + controls */}
           <div className="flex min-w-0 flex-col gap-4">
-            <StatusPanel cameraActive={cameraActive} handDetected={handDetected} peaceDetected={peaceDetected} />
-            <ControlPanel cameraActive={cameraActive} isStarting={isStarting} onStart={handleStart} onStop={stopCamera} />
+            {/* ControlPanel first on mobile for visibility, sticky bottom */}
+            <div className="sticky bottom-4 z-20 order-first md:static md:order-none">
+              <ControlPanel cameraActive={cameraActive} isStarting={isStarting} onStart={handleStart} onStop={stopCamera} />
+              <p className="mt-2 text-center text-[11px] leading-relaxed text-white/30 md:hidden">
+                {cameraActive ? "Tap Stop to turn off camera" : "Tap Start to begin · Body stays fully visible"}
+              </p>
+            </div>
+            <div className="order-last md:order-none">
+              <StatusPanel cameraActive={cameraActive} handDetected={handDetected} peaceDetected={peaceDetected} />
+            </div>
 
             {/* desktop helper */}
             <p className="hidden text-center text-[11px] leading-relaxed text-white/20 md:block">

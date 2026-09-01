@@ -7,19 +7,18 @@ interface Props {
   peaceDetected: boolean;
   error: { message: string; type?: string } | null;
   onRetry?: () => void;
-  onRequestPermission?: () => void;
 }
 
-export function CameraView({ videoRef, cameraActive, isStarting, peaceDetected, error, onRetry, onRequestPermission }: Props) {
+export function CameraView({ videoRef, cameraActive, isStarting, peaceDetected, error, onRetry }: Props) {
   return (
     <div className="relative overflow-hidden rounded-[20px] border border-white/[0.07] bg-[#0A0C14] shadow-[0_20px_60px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.04)_inset] md:rounded-[22px]">
-      <div className="relative aspect-video w-full bg-[#0A0C14]">
+      <div className="relative aspect-[4/3] w-full bg-black md:aspect-video md:bg-[#0A0C14]">
         <video
           ref={videoRef}
           autoPlay
           muted
           playsInline
-          className={`h-full w-full object-cover scale-x-[-1] transition-[filter] duration-500 ${peaceDetected ? "blur-[18px]" : "blur-0"}`}
+          className={`h-full w-full bg-black object-contain object-center scale-x-[-1] transition-[filter] duration-500 md:object-cover ${peaceDetected ? "blur-[18px]" : "blur-0"}`}
         />
 
         {/* Empty state */}
@@ -32,14 +31,9 @@ export function CameraView({ videoRef, cameraActive, isStarting, peaceDetected, 
             <p className="mt-1.5 max-w-[280px] text-[12.5px] leading-relaxed text-white/35">
               Start your camera to begin detection. Your feed stays on-device.
             </p>
-            {onRequestPermission && (
-              <button
-                onClick={onRequestPermission}
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[13px] font-semibold text-black transition hover:bg-white/90 active:scale-[0.98]"
-              >
-                Start Camera
-              </button>
-            )}
+            <p className="mt-3 max-w-[280px] text-[11px] leading-relaxed text-white/25 md:hidden">
+              Tap Start Camera below
+            </p>
             {error && (
               <div
                 role="alert"
