@@ -1,73 +1,98 @@
-# Welcome to your Lovable project
+# Peace Blur
 
-## Project info
+Real-time Peace Sign Blur Detector.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Show a peace sign ✌️ to automatically blur your camera — all processing happens locally in your browser.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- Real-time webcam via `navigator.mediaDevices.getUserMedia`
+- MediaPipe Tasks Vision hand detection (`maxNumHands=1`, confidence 0.5)
+- Peace sign detection (Index + Middle up, Ring + Pinky down — preserves original `blur.py` logic)
+- Automatic camera blur on peace sign, clears when gesture disappears
+- Client-side processing — no video uploaded, no backend
+- Privacy friendly
+- Responsive + accessible UI (glassmorphism, dark mode)
+- Vercel-ready static build
 
-**Use Lovable**
+## Tech Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- React 18 + Vite 5 + TypeScript 5
+- Tailwind CSS + shadcn/ui
+- MediaPipe Tasks Vision (`@mediapipe/tasks-vision`)
+- HTML5 Video + CSS `filter: blur()`
 
-Changes made via Lovable will be committed automatically to this repo.
+## Installation
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+npm install
 ```
 
-**Edit a file directly in GitHub**
+## Development
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm run dev
+# http://localhost:8080 (or 5173)
+```
 
-**Use GitHub Codespaces**
+## Production Build
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+npm run build
+npm run preview
+```
 
-## What technologies are used for this project?
+Output: `dist/` — static, deploy anywhere.
 
-This project is built with:
+## Vercel Deployment
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+1. Push to GitHub.
+2. Import project in Vercel.
+3. Framework preset: **Vite**.
+4. Build command: `npm run build`
+5. Output directory: `dist`
+6. No env vars, no serverless functions required.
 
-## How can I deploy this project?
+Or via CLI:
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+```bash
+npm i -g vercel
+vercel --prod
+```
 
-## Can I connect a custom domain to my Lovable project?
+## How It Works
 
-Yes, you can!
+1. Click **Start Camera** → requests permission → attaches `MediaStream` to `<video>`.
+2. MediaPipe `HandLandmarker` runs in `requestAnimationFrame` loop (`VIDEO` mode).
+3. `isPeaceSign(landmarks)` checks tips vs PIPs: `8<6 && 12<10 && !(16<14) && !(20<18)`.
+4. `peaceDetected === true` → video gets `blur-[18px]`; false → `blur-0`.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Project Structure
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+```
+src/
+├── components/peace/  Header, CameraView, StatusPanel, ControlPanel, InfoSection
+├── hooks/             useHandDetection.ts
+├── utils/             gestureDetection.ts (isPeaceSign)
+├── types/             detection.ts
+├── pages/             PeaceBlur.tsx ("/"), Index.tsx ("/desktop")
+└── index.css
+```
+
+## Privacy
+
+```
+Browser Camera → MediaPipe (WASM) → Hand Landmarks → Peace Detection → Blur
+```
+
+All on-device. No upload.
+
+## Original Python Logic (preserved)
+
+```python
+index_up = finger_up(8, 6, landmarks)
+middle_up = finger_up(12, 10, landmarks)
+ring_up = finger_up(16, 14, landmarks)
+pinky_up = finger_up(20, 18, landmarks)
+peace_detected = index_up and middle_up and not ring_up and not pinky_up
+```
