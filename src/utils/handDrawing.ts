@@ -44,9 +44,15 @@ export const HAND_CONNECTIONS: readonly [number, number][] = [
  * and cropped. With contain, it's letterboxed. We detect which mode by
  * comparing aspect ratios against the computed style.
  */
+const objectFitCache = new WeakMap<HTMLElement, { value: string; time: number }>();
 function getObjectFit(element: HTMLElement): string {
+  const cached = objectFitCache.get(element);
+  const now = performance.now();
+  if (cached && now - cached.time < 500) return cached.value;
   const style = window.getComputedStyle(element);
-  return style.objectFit || "cover";
+  const value = style.objectFit || "cover";
+  objectFitCache.set(element, { value, time: now });
+  return value;
 }
 
 export function getDisplayedVideoRect(video: HTMLVideoElement): {
@@ -103,13 +109,13 @@ export function getDisplayedVideoRect(video: HTMLVideoElement): {
 /**
  * Synchronize canvas backing store to its displayed size and video rect.
  * Handles DPR for crisp rendering. Caller should call before each draw if
- * container may have resized.
+ * container may have resized. DPR capped at 2 for mobile memory/battery.
  */
 export function resizeCanvasToVideo(
   canvas: HTMLCanvasElement,
   video: HTMLVideoElement
 ): void {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const rect = video.getBoundingClientRect();
   // Canvas is absolute inset-0 sized to video's client size, so use clientWidth/Height
   // But to be precise, match the bounding rect size
@@ -235,7 +241,7 @@ export function drawHand(
   video: HTMLVideoElement,
   mirrored: boolean
 ): void {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
   // Reset and apply DPR transform
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   // Clear in DPR-scaled space

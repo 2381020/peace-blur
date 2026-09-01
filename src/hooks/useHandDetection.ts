@@ -87,12 +87,15 @@ export function useHandDetection(): UseHandDetectionReturn {
     throw new Error(friendly);
   }, []);
 
+  const lastVideoTimeRef = useRef<number>(-1);
+  const lastProcessTimeRef = useRef<number>(0);
+
   const clearOverlay = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = ctxRef.current;
     if (canvas && ctx) {
       clearCanvas(canvas, ctx);
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     }
@@ -119,7 +122,7 @@ export function useHandDetection(): UseHandDetectionReturn {
     const video = videoRef.current;
     if (!canvas || !video) return;
     if (!ctxRef.current) {
-      ctxRef.current = canvas.getContext("2d");
+      ctxRef.current = canvas.getContext("2d", { alpha: true }) as CanvasRenderingContext2D | null;
     }
     const ctx = ctxRef.current;
     if (!ctx) return;
@@ -130,7 +133,7 @@ export function useHandDetection(): UseHandDetectionReturn {
     if (!landmarks || landmarks.length === 0) {
       clearCanvas(canvas, ctx);
       // need to re-apply DPR transform after clear
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
       return;
@@ -147,8 +150,25 @@ export function useHandDetection(): UseHandDetectionReturn {
       animationRef.current = requestAnimationFrame(detectLoop);
       return;
     }
+    // Avoid processing same frame and throttle to ~30fps for mobile battery
+    const now = performance.now();
+    if (video.currentTime === lastVideoTimeRef.current) {
+      animationRef.current = requestAnimationFrame(detectLoop);
+      return;
+    }
+    if (now - lastProcessTimeRef.current < 28) {
+      animationRef.current = requestAnimationFrame(detectLoop);
+      return;
+    }
+    // Skip if tab hidden - save battery
+    if (typeof document !== "undefined" && document.hidden) {
+      animationRef.current = requestAnimationFrame(detectLoop);
+      return;
+    }
+    lastVideoTimeRef.current = video.currentTime;
+    lastProcessTimeRef.current = now;
     try {
-      const result = landmarker.detectForVideo(video, performance.now());
+      const result = landmarker.detectForVideo(video, now);
       const landmarks = result.landmarks?.[0];
       if (landmarks && landmarks.length > 0) {
         setHandDetected(true);
@@ -189,20 +209,44 @@ export function useHandDetection(): UseHandDetectionReturn {
       await initHandLandmarker();
 
       const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: isMobile
-          ? {
-              facingMode: "user",
-            }
-          : {
-              facingMode: "user",
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-              aspectRatio: { ideal: 16 / 9 },
-            },
-        audio: false,
-      });
+
+      const tryGetUserMedia = async (): Promise<MediaStream> => {
+        const attempts: Array<MediaStreamConstraints> = isMobile
+          ? [
+              { video: { facingMode: "user", width: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } }, audio: false },
+              { video: { facingMode: { ideal: "user" } }, audio: false },
+              { video: true, audio: false },
+            ]
+          : [
+              { video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 }, aspectRatio: { ideal: 16 / 9 } }, audio: false },
+              { video: { facingMode: { ideal: "user" } }, audio: false },
+              { video: true, audio: false },
+            ];
+        let lastErr: unknown = null;
+        for (const c of attempts) {
+          try {
+            return await navigator.mediaDevices.getUserMedia(c);
+          } catch (e) {
+            lastErr = e;
+            const name = e instanceof DOMException || e instanceof Error ? (e as Error).name : "";
+            if (name === "OverconstrainedError" || name === "NotFoundError") continue;
+            // For permission errors, don't retry
+            if (name === "NotAllowedError" || name === "SecurityError") throw e;
+            // For other errors, try next fallback
+            continue;
+          }
+        }
+        throw lastErr;
+      };
+
+      const stream = await tryGetUserMedia();
       streamRef.current = stream;
+      // Handle OS killing camera (incoming call) on mobile
+      stream.getTracks().forEach((t) => {
+        t.onended = () => {
+          stopCameraInternal();
+        };
+      });
 
       const video = videoRef.current;
       if (video) {
@@ -272,7 +316,7 @@ export function useHandDetection(): UseHandDetectionReturn {
     stopCameraInternal();
   }, [stopCameraInternal]);
 
-  // Handle resize / orientation change - keep canvas aligned
+  // Handle resize / orientation change - keep canvas aligned + fullscreen changes
   useEffect(() => {
     if (!cameraActive) return;
     const onResize = () => {
@@ -282,6 +326,9 @@ export function useHandDetection(): UseHandDetectionReturn {
     };
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
+    document.addEventListener("fullscreenchange", onResize);
+    // Safari
+    document.addEventListener("webkitfullscreenchange", onResize as EventListener);
     let ro: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined" && videoRef.current) {
       ro = new ResizeObserver(onResize);
@@ -291,13 +338,26 @@ export function useHandDetection(): UseHandDetectionReturn {
     const onMetadata = () => onResize();
     const v = videoRef.current;
     v?.addEventListener("loadedmetadata", onMetadata);
+    const onVisibility = () => {
+      if (document.hidden) {
+        // Pause loop to save battery; will resume on visible
+        cancelAnimationFrame(animationRef.current);
+      } else if (cameraActive && videoRef.current?.readyState !== undefined) {
+        lastVideoTimeRef.current = -1;
+        animationRef.current = requestAnimationFrame(detectLoop);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", onResize);
+      document.removeEventListener("fullscreenchange", onResize);
+      document.removeEventListener("webkitfullscreenchange", onResize as EventListener);
+      document.removeEventListener("visibilitychange", onVisibility);
       v?.removeEventListener("loadedmetadata", onMetadata);
       if (ro) ro.disconnect();
     };
-  }, [cameraActive]);
+  }, [cameraActive, detectLoop]);
 
   useEffect(() => {
     return () => {

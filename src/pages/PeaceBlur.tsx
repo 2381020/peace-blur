@@ -22,14 +22,14 @@ export default function PeaceBlur() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070A14] text-white antialiased selection:bg-white/10">
+    <div className="min-h-[100dvh] min-h-[100svh] min-h-screen bg-[#070A14] text-white antialiased selection:bg-white/10 overflow-x-clip [padding-top:env(safe-area-inset-top)] [padding-bottom:env(safe-area-inset-bottom)]">
       {/* subtle background - restrained */}
-      <div className="pointer-events-none fixed inset-0">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_900px_500px_at_50%_-10%,rgba(99,102,241,0.07),transparent_60%),radial-gradient(ellipse_700px_400px_at_85%_85%,rgba(16,185,129,0.04),transparent_55%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent,rgba(0,0,0,0.2))]" />
       </div>
 
-      <div className="relative mx-auto w-full max-w-[1120px] px-4 pb-10 pt-6 md:px-6 md:pt-8">
+      <div className="relative mx-auto w-full max-w-[1120px] overflow-x-clip px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(1.5rem+env(safe-area-inset-top))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:px-6 md:pt-[calc(2rem+env(safe-area-inset-top))] md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))]">
         <Header />
 
         {/* Main grid - mobile single column, desktop camera + side panel */}
@@ -55,8 +55,8 @@ export default function PeaceBlur() {
 
           {/* Side panel - detection + controls */}
           <div className="flex min-w-0 flex-col gap-4">
-            {/* ControlPanel first on mobile for visibility, sticky bottom */}
-            <div className="sticky bottom-4 z-20 order-first md:static md:order-none">
+            {/* ControlPanel first on mobile for visibility, sticky bottom with safe-area */}
+            <div className="sticky bottom-[calc(1rem+env(safe-area-inset-bottom))] z-20 order-first md:static md:order-none">
               <ControlPanel cameraActive={cameraActive} isStarting={isStarting} onStart={handleStart} onStop={stopCamera} />
               <p className="mt-2 text-center text-[11px] leading-relaxed text-white/30 md:hidden">
                 {cameraActive ? "Tap Stop to turn off camera" : "Tap Start to begin · Body stays fully visible"}
@@ -78,7 +78,7 @@ export default function PeaceBlur() {
           <InfoSection />
         </div>
 
-        <footer className="mt-8 border-t border-white/[0.04] py-6 text-center text-[11px] tracking-wide text-white/20">
+        <footer className="mt-8 border-t border-white/[0.04] py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-center text-[11px] tracking-wide text-white/20">
           Built with React · Vite · TypeScript · Tailwind · MediaPipe Tasks Vision
         </footer>
       </div>

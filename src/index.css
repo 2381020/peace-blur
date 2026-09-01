@@ -98,16 +98,27 @@
   * {
     @apply border-border;
   }
+  html {
+    background: #070A14;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overflow-x: clip;
+    scrollbar-gutter: stable;
+  }
+  html, body {
+    max-width: 100vw;
+    overscroll-behavior-y: contain;
+    overscroll-behavior-x: none;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', 'Geist', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-  }
-  /* Peace Blur uses dark premium by default even without .dark class */
-  html {
-    background: #070A14;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overflow-x: clip;
   }
 }
 

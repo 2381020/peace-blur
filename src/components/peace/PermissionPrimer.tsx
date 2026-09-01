@@ -9,7 +9,7 @@ interface Props {
 export function PermissionPrimer({ open, onClose, onConfirm }: Props) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 [padding-top:env(safe-area-inset-top)] [padding-bottom:env(safe-area-inset-bottom)] [padding-left:env(safe-area-inset-left)] [padding-right:env(safe-area-inset-right)]">
       <div className="absolute inset-0 bg-[#060712]/70 backdrop-blur-[8px]" onClick={onClose} />
       <div
         role="dialog"
@@ -20,7 +20,7 @@ export function PermissionPrimer({ open, onClose, onConfirm }: Props) {
         <button
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-3 top-3 rounded-full p-1.5 text-white/30 hover:bg-white/5 hover:text-white/70 transition"
+          className="absolute right-3 top-3 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2.5 text-white/30 hover:bg-white/5 hover:text-white/70 transition"
         >
           <X className="h-4 w-4" />
         </button>
@@ -41,13 +41,13 @@ export function PermissionPrimer({ open, onClose, onConfirm }: Props) {
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button
             onClick={onClose}
-            className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 text-[13px] font-medium text-white/70 hover:bg-white/[0.07] transition"
+            className="min-h-[44px] rounded-full border border-white/10 bg-white/[0.04] px-4 py-3.5 text-[13px] font-medium text-white/70 hover:bg-white/[0.07] transition"
           >
             Later
           </button>
           <button
             onClick={onConfirm}
-            className="rounded-full bg-white px-4 py-3 text-[13px] font-semibold text-black hover:bg-white/90 transition active:scale-[0.98]"
+            className="min-h-[44px] rounded-full bg-white px-4 py-3.5 text-[13px] font-semibold text-black hover:bg-white/90 transition active:scale-[0.98]"
           >
             Allow Camera
           </button>
