@@ -11,14 +11,9 @@ export function Header() {
       <div className="mt-5 flex flex-col items-center">
         <h1 className="flex items-center gap-2.5 text-[32px] font-[650] tracking-[-0.03em] text-white md:text-[42px]">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-[16px] md:h-9 md:w-9 md:text-[18px]">✌️</span>
-          Peace Blur
+          AI Gesture Camera
         </h1>
-        <p className="mt-2 text-[15px] font-medium tracking-[-0.01em] text-white/55 md:text-[16px]">
-          Real-time peace sign detection
-        </p>
-        <p className="mt-1.5 text-[13px] font-normal text-white/35 md:text-[14px]">
-          Show a peace sign. Get blurred.
-        </p>
+        
       </div>
     </header>
   );

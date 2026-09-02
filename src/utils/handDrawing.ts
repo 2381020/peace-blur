@@ -253,3 +253,104 @@ export function drawHand(
   drawHandConnections(ctx, landmarks, rect, mirrored);
   drawHandLandmarks(ctx, landmarks, rect, mirrored);
 }
+
+// --- Drawing canvas helpers ---
+
+export function landmarkToCanvasPoint(
+  landmark: HandLandmark,
+  video: HTMLVideoElement,
+  mirrored: boolean
+): { x: number; y: number } {
+  const rect = getDisplayedVideoRect(video);
+  const x = rect.x + (mirrored ? 1 - landmark.x : landmark.x) * rect.w;
+  const y = rect.y + landmark.y * rect.h;
+  return { x, y };
+}
+
+export function resizeCanvasesToVideo(
+  canvases: HTMLCanvasElement[],
+  video: HTMLVideoElement
+): void {
+  canvases.forEach((c) => resizeCanvasToVideo(c, video));
+}
+
+export function drawStrokes(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  strokes: import("@/types/detection").Stroke[]
+): void {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+  for (const stroke of strokes) {
+    if (stroke.points.length < 2) {
+      // single dot
+      if (stroke.points.length === 1) {
+        const p = stroke.points[0];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, stroke.width / 2, 0, Math.PI * 2);
+        ctx.fillStyle = stroke.color;
+        ctx.fill();
+      }
+      continue;
+    }
+    ctx.beginPath();
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    // smooth with quadratic interpolation
+    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+    for (let i = 1; i < stroke.points.length - 1; i++) {
+      const p = stroke.points[i];
+      const next = stroke.points[i + 1];
+      const mx = (p.x + next.x) / 2;
+      const my = (p.y + next.y) / 2;
+      ctx.quadraticCurveTo(p.x, p.y, mx, my);
+    }
+    const last = stroke.points[stroke.points.length - 1];
+    const secondLast = stroke.points[stroke.points.length - 2];
+    // handle last segment
+    if (stroke.points.length === 2) {
+      ctx.lineTo(last.x, last.y);
+    } else {
+      ctx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+    }
+    ctx.stroke();
+  }
+}
+
+export function drawCursor(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  pos: { x: number; y: number } | null,
+  isDrawing: boolean,
+  color: string
+): void {
+  if (!pos) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // cursor is drawn on landmark canvas after hand, so no clear here - caller handles
+  // draw outer ring
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, isDrawing ? 8 : 10, 0, Math.PI * 2);
+  ctx.strokeStyle = isDrawing ? color : "rgba(255,255,255,0.9)";
+  ctx.lineWidth = isDrawing ? 2 : 1.8;
+  ctx.stroke();
+  if (isDrawing) {
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.fill();
+  }
+  ctx.restore();
+}

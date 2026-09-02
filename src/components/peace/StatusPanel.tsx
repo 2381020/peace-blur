@@ -1,7 +1,15 @@
+import type { GestureType } from "@/types/detection";
+
 interface Props {
   cameraActive: boolean;
   handDetected: boolean;
   peaceDetected: boolean;
+  blurActive?: boolean;
+  gesture?: GestureType;
+  gestureLabel?: string;
+  gestureAction?: string;
+  confidence?: number;
+  isDrawing?: boolean;
 }
 
 function StatusRow({ label, value, active, accent }: { label: string; value: string; active?: boolean; accent?: boolean }) {
@@ -20,19 +28,33 @@ function StatusRow({ label, value, active, accent }: { label: string; value: str
   );
 }
 
-export function StatusPanel({ cameraActive, handDetected, peaceDetected }: Props) {
-  const blurActive = cameraActive && peaceDetected;
+export function StatusPanel({ cameraActive, handDetected, peaceDetected, blurActive: blurActiveProp, gesture = "none", gestureLabel = "None", gestureAction = "—", confidence = 0, isDrawing = false }: Props) {
+  const blurActive = blurActiveProp ?? (cameraActive && peaceDetected);
+  const handCount = handDetected ? "1" : "Not detected";
+  const gestureValue = handDetected ? gestureLabel : "Not detected";
+  const actionValue = blurActive ? "Blur Active" : isDrawing ? "Air Drawing" : gestureAction;
+  const showConfidence = handDetected && gesture !== "none";
 
   return (
     <div className="rounded-[20px] border border-white/[0.06] bg-white/[0.035] p-5 backdrop-blur-xl md:p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-[11px] font-semibold tracking-[0.12em] text-white/40">DETECTION</h2>
-        <span className={`h-1.5 w-1.5 rounded-full ${blurActive ? "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]" : "bg-white/15"}`} />
+        <h2 className="text-[11px] font-semibold tracking-[0.12em] text-white/40">GESTURE DETECTION</h2>
+        <span className={`h-1.5 w-1.5 rounded-full ${blurActive ? "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]" : handDetected ? "bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : "bg-white/15"}`} />
       </div>
 
       <div className="mt-4 divide-y divide-white/[0.06]">
-        <StatusRow label="Camera" value={cameraActive ? "Active" : "Idle"} active={cameraActive} />
-        <StatusRow label="Hand" value={handDetected ? "Detected" : "Not detected"} active={handDetected} />
+        <StatusRow label="Hand" value={handCount} active={handDetected} />
+        <StatusRow label="Gesture" value={gestureValue} active={gesture !== "none" && handDetected} accent={gesture === "peace"} />
+        {showConfidence && (
+          <div className="flex items-center justify-between py-2.5">
+            <span className="text-[12.5px] font-medium text-white/45">Confidence</span>
+            <span className="text-[12.5px] font-medium text-white">{confidence}%</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between py-2.5">
+          <span className="text-[12.5px] font-medium text-white/45">Action</span>
+          <span className="text-[12.5px] font-medium text-white">{actionValue}</span>
+        </div>
         <StatusRow label="Peace sign" value={peaceDetected ? "Detected" : "Not detected"} active={peaceDetected} />
         <div className="flex items-center justify-between py-2.5">
           <span className="text-[12.5px] font-medium text-white/45">Blur</span>
@@ -49,9 +71,7 @@ export function StatusPanel({ cameraActive, handDetected, peaceDetected }: Props
         </div>
       </div>
 
-      <p className="mt-4 text-[11.5px] leading-relaxed text-white/25">
-        Blur activates instantly on ✌️ and clears when the gesture disappears.
-      </p>
+      
     </div>
   );
 }
